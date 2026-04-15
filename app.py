@@ -6,7 +6,7 @@ import gspread
 from google.oauth2.service_account import Credentials
 from apscheduler.schedulers.background import BackgroundScheduler
 from datetime import datetime, timedelta
-import os, json, re
+import os, json, re, uuid
 import pytz
 from dotenv import load_dotenv
 
@@ -21,10 +21,8 @@ FROM_NUMBER = os.getenv("TWILIO_PHONE")
 
 # ── Google Sheets ─────────────────────────────────────
 SCOPES = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-import json, base64
-creds_b64 = os.getenv("GOOGLE_CREDENTIALS_B64")
-creds_json = json.loads(base64.b64decode(creds_b64).decode("utf-8"))
-creds = Credentials.from_service_account_info(creds_json, scopes=SCOPES)
+creds = Credentials.from_service_account_file("daisy-bot-493323-96f949582685.json", scopes=SCOPES)
+gc = gspread.authorize(creds)
 sh = gc.open_by_key(os.getenv("GOOGLE_SHEET_ID"))
 
 def get_sheet(name, headers):
@@ -64,9 +62,8 @@ scheduler.start()
 def check_reminders():
     ws = reminders_ws()
     rows = ws.get_all_records()
-    import pytz
-pk_tz = pytz.timezone('Asia/Karachi')
-now = datetime.now(pk_tz).replace(tzinfo=None)
+    pk_tz = pytz.timezone('Asia/Karachi')
+    now = datetime.now(pk_tz).replace(tzinfo=None)
     for i, row in enumerate(rows):
         if row["Done"] == "YES":
             continue
@@ -117,7 +114,8 @@ def build_context(user_msg):
     except:
         expenses, debts, reminders, tasks = [], [], [], []
 
-    now = datetime.now(pytz.timezone('Asia/Karachi')).replace(tzinfo=None).strftime("%Y-%m-%d %H:%M")
+    pk_tz = pytz.timezone('Asia/Karachi')
+    now = datetime.now(pk_tz).replace(tzinfo=None).strftime("%Y-%m-%d %H:%M")
     return f"""Current datetime: {now}
 User message: {user_msg}
 
@@ -131,64 +129,22 @@ def process(parsed, user_phone):
     t = parsed.get("type")
     d = parsed.get("data", {})
     reply = parsed.get("reply", "Done! ✅")
+    pk_tz = pytz.timezone('Asia/Karachi')
+    now_str = datetime.now(pk_tz).replace(tzinfo=None).strftime("%Y-%m-%d %H:%M")
+    now_date = datetime.now(pk_tz).replace(tzinfo=None).strftime("%Y-%m-%d")
 
     if t == "expense":
-        expenses_ws().append_row([
-            datetime.now(pytz.timezone('Asia/Karachi')).replace(tzinfo=None).strftime("%Y-%m-%d %H:%M"),
-            d.get("category", "Other"),
-            d.get("description", ""),
-            d.get("amount", 0),
-            d.get("currency", "PKR")
-        ])
-
+        expenses_ws().append_row([now_str, d.get("category","Other"), d.get("description",""), d.get("amount",0), d.get("currency","PKR")])
     elif t == "income":
-        income_ws().append_row([
-            datetime.now(pytz.timezone('Asia/Karachi')).replace(tzinfo=None).strftime("%Y-%m-%d %H:%M"),
-            d.get("source", ""),
-            d.get("amount", 0),
-            d.get("currency", "PKR"),
-            d.get("notes", "")
-        ])
-
+        income_ws().append_row([now_str, d.get("source",""), d.get("amount",0), d.get("currency","PKR"), d.get("notes","")])
     elif t == "reminder":
-        import uuid
-        reminders_ws().append_row([
-            str(uuid.uuid4())[:8],
-            d.get("datetime_str", ""),
-            d.get("message", ""),
-            d.get("repeat", "NO"),
-            "NO",
-            user_phone
-        ])
-
+        reminders_ws().append_row([str(uuid.uuid4())[:8], d.get("datetime_str",""), d.get("message",""), d.get("repeat","NO"), "NO", user_phone])
     elif t == "debt":
-        debts_ws().append_row([
-            datetime.now(pytz.timezone('Asia/Karachi')).replace(tzinfo=None).strftime("%Y-%m-%d"),
-            d.get("person", ""),
-            d.get("direction", ""),
-            d.get("amount", 0),
-            d.get("reason", ""),
-            "NO"
-        ])
-
+        debts_ws().append_row([now_date, d.get("person",""), d.get("direction",""), d.get("amount",0), d.get("reason",""), "NO"])
     elif t == "task":
-        tasks_ws().append_row([
-            datetime.now(pytz.timezone('Asia/Karachi')).replace(tzinfo=None).strftime("%Y-%m-%d"),
-            d.get("task", ""),
-            d.get("priority", "Medium"),
-            "NO"
-        ])
-
+        tasks_ws().append_row([now_date, d.get("task",""), d.get("priority","Medium"), "NO"])
     elif t == "health":
-        health_ws().append_row([
-            datetime.now(pytz.timezone('Asia/Karachi')).replace(tzinfo=None).strftime("%Y-%m-%d %H:%M"),
-            d.get("type", ""),
-            d.get("value", ""),
-            d.get("notes", "")
-        ])
-
-    elif t == "query":
-        pass  # reply already built by Claude
+        health_ws().append_row([now_str, d.get("type",""), d.get("value",""), d.get("notes","")])
 
     return reply
 
@@ -196,7 +152,8 @@ def process(parsed, user_phone):
 def weekly_report():
     try:
         rows = expenses_ws().get_all_records()
-        week_ago = datetime.now(pytz.timezone('Asia/Karachi')).replace(tzinfo=None) - timedelta(days=7)
+        pk_tz = pytz.timezone('Asia/Karachi')
+        week_ago = datetime.now(pk_tz).replace(tzinfo=None) - timedelta(days=7)
         weekly = [r for r in rows if datetime.strptime(r["Date"], "%Y-%m-%d %H:%M") >= week_ago]
         total = sum(float(r["Amount"]) for r in weekly)
         by_cat = {}
@@ -209,8 +166,6 @@ def weekly_report():
             send_msg(YOUR_NUMBER, msg)
     except Exception as e:
         print(f"Weekly report error: {e}")
-
-# scheduler.add_job(weekly_report, "cron", day_of_week="sun", hour=9, minute=0)
 
 # ── Main Webhook ──────────────────────────────────────
 @app.route("/webhook", methods=["POST"])
@@ -248,4 +203,4 @@ def home():
 
 if __name__ == "__main__":
     port = int(os.environ.get('PORT', 5000))
-app.run(debug=False, host='0.0.0.0', port=port)
+    app.run(debug=False, host='0.0.0.0', port=port)
