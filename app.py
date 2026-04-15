@@ -7,6 +7,7 @@ from google.oauth2.service_account import Credentials
 from apscheduler.schedulers.background import BackgroundScheduler
 from datetime import datetime, timedelta
 import os, json, re
+import pytz
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -114,7 +115,7 @@ def build_context(user_msg):
     except:
         expenses, debts, reminders, tasks = [], [], [], []
 
-    now = datetime.now().strftime("%Y-%m-%d %H:%M")
+    now = datetime.now(pytz.timezone('Asia/Karachi')).replace(tzinfo=None).strftime("%Y-%m-%d %H:%M")
     return f"""Current datetime: {now}
 User message: {user_msg}
 
@@ -131,7 +132,7 @@ def process(parsed, user_phone):
 
     if t == "expense":
         expenses_ws().append_row([
-            datetime.now().strftime("%Y-%m-%d %H:%M"),
+            datetime.now(pytz.timezone('Asia/Karachi')).replace(tzinfo=None).strftime("%Y-%m-%d %H:%M"),
             d.get("category", "Other"),
             d.get("description", ""),
             d.get("amount", 0),
@@ -140,7 +141,7 @@ def process(parsed, user_phone):
 
     elif t == "income":
         income_ws().append_row([
-            datetime.now().strftime("%Y-%m-%d %H:%M"),
+            datetime.now(pytz.timezone('Asia/Karachi')).replace(tzinfo=None).strftime("%Y-%m-%d %H:%M"),
             d.get("source", ""),
             d.get("amount", 0),
             d.get("currency", "PKR"),
@@ -160,7 +161,7 @@ def process(parsed, user_phone):
 
     elif t == "debt":
         debts_ws().append_row([
-            datetime.now().strftime("%Y-%m-%d"),
+            datetime.now(pytz.timezone('Asia/Karachi')).replace(tzinfo=None).strftime("%Y-%m-%d"),
             d.get("person", ""),
             d.get("direction", ""),
             d.get("amount", 0),
@@ -170,7 +171,7 @@ def process(parsed, user_phone):
 
     elif t == "task":
         tasks_ws().append_row([
-            datetime.now().strftime("%Y-%m-%d"),
+            datetime.now(pytz.timezone('Asia/Karachi')).replace(tzinfo=None).strftime("%Y-%m-%d"),
             d.get("task", ""),
             d.get("priority", "Medium"),
             "NO"
@@ -178,7 +179,7 @@ def process(parsed, user_phone):
 
     elif t == "health":
         health_ws().append_row([
-            datetime.now().strftime("%Y-%m-%d %H:%M"),
+            datetime.now(pytz.timezone('Asia/Karachi')).replace(tzinfo=None).strftime("%Y-%m-%d %H:%M"),
             d.get("type", ""),
             d.get("value", ""),
             d.get("notes", "")
@@ -193,7 +194,7 @@ def process(parsed, user_phone):
 def weekly_report():
     try:
         rows = expenses_ws().get_all_records()
-        week_ago = datetime.now() - timedelta(days=7)
+        week_ago = datetime.now(pytz.timezone('Asia/Karachi')).replace(tzinfo=None) - timedelta(days=7)
         weekly = [r for r in rows if datetime.strptime(r["Date"], "%Y-%m-%d %H:%M") >= week_ago]
         total = sum(float(r["Amount"]) for r in weekly)
         by_cat = {}
