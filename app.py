@@ -25,8 +25,6 @@ import json, base64
 creds_b64 = os.getenv("GOOGLE_CREDENTIALS_B64")
 creds_json = json.loads(base64.b64decode(creds_b64).decode("utf-8"))
 creds = Credentials.from_service_account_info(creds_json, scopes=SCOPES)
-creds = Credentials.from_service_account_info(creds_json, scopes=SCOPES)
-gc = gspread.authorize(creds)
 sh = gc.open_by_key(os.getenv("GOOGLE_SHEET_ID"))
 
 def get_sheet(name, headers):
