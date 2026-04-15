@@ -48,3 +48,4 @@ tzlocal==5.3.1
 urllib3==2.6.3
 Werkzeug==3.1.8
 yarl==1.23.0
+pytz

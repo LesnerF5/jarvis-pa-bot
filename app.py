@@ -61,7 +61,9 @@ scheduler.start()
 def check_reminders():
     ws = reminders_ws()
     rows = ws.get_all_records()
-    now = datetime.now()
+    import pytz
+pk_tz = pytz.timezone('Asia/Karachi')
+now = datetime.now(pk_tz).replace(tzinfo=None)
     for i, row in enumerate(rows):
         if row["Done"] == "YES":
             continue
@@ -74,7 +76,7 @@ def check_reminders():
             if row["Repeat"] == "NO":
                 ws.update_cell(i + 2, 5, "YES")
 
-# scheduler.add_job(check_reminders, "interval", minutes=1)
+scheduler.add_job(check_reminders, "interval", minutes=1)
 
 # ── System Prompt ─────────────────────────────────────
 SYSTEM = """You are Jarvis, Jameel's personal WhatsApp AI assistant based in Multan, Pakistan.
@@ -242,4 +244,5 @@ def home():
     return "Jarvis is running! 🤖"
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5000)
+    port = int(os.environ.get('PORT', 5000))
+app.run(debug=False, host='0.0.0.0', port=port)
