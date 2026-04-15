@@ -21,7 +21,9 @@ FROM_NUMBER = os.getenv("TWILIO_PHONE")
 
 # ── Google Sheets ─────────────────────────────────────
 SCOPES = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-creds = Credentials.from_service_account_file(os.getenv("CREDENTIALS_FILE"), scopes=SCOPES)
+import json
+creds_json = json.loads(os.getenv("GOOGLE_CREDENTIALS_JSON"))
+creds = Credentials.from_service_account_info(creds_json, scopes=SCOPES)
 gc = gspread.authorize(creds)
 sh = gc.open_by_key(os.getenv("GOOGLE_SHEET_ID"))
 
